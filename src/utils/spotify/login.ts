@@ -13,27 +13,20 @@ const authUrl = new URL('https://accounts.spotify.com/authorize');
 const SCOPES = [
   'ugc-image-upload',
   'streaming',
-
   'user-read-playback-state',
   'user-modify-playback-state',
   'user-read-currently-playing',
-  'user-read-private', // ← ADD THIS! Required for user authentication
-  'user-read-email', // ← ADD THIS! Also commonly required
-  'ugc-image-upload',
-  'streaming',
-
+  'user-read-private',
+  'user-read-email',
   'playlist-read-private',
   'playlist-modify-public',
   'playlist-modify-private',
   'playlist-read-collaborative',
-
   'user-follow-modify',
   'user-follow-read',
-
   'user-read-playback-position',
   'user-top-read',
   'user-read-recently-played',
-
   'user-library-read',
   'user-library-modify',
 ] as const;
@@ -60,12 +53,9 @@ const generateRandomString = (length: number) => {
 };
 
 const logInWithSpotify = async (anonymous?: boolean) => {
-  let codeVerifier = localStorage.getItem('code_verifier');
-
-  if (!codeVerifier) {
-    codeVerifier = generateRandomString(64);
-    localStorage.setItem('code_verifier', codeVerifier);
-  }
+  // MINIMAL FIX: Always generate fresh code_verifier to prevent loops
+  const codeVerifier = generateRandomString(64);
+  localStorage.setItem('code_verifier', codeVerifier);
 
   const hashed = await sha256(codeVerifier);
   const codeChallenge = base64encode(hashed);
@@ -113,14 +103,18 @@ const requestToken = async (code: string) => {
   });
 
   if (response.access_token) {
+    // MINIMAL FIX: Fix expiry calculation (was multiplying by 3600 incorrectly)
     setLocalStorageWithExpiry(
       'access_token',
       response.access_token,
-      response.expires_in * 60 * 60,
+      response.expires_in * 1000, // Convert seconds to milliseconds
     );
     axios.defaults.headers.common['Authorization'] =
       'Bearer ' + response.access_token;
     localStorage.setItem('refresh_token', response.refresh_token);
+
+    // MINIMAL FIX: Clean up code_verifier after successful exchange
+    localStorage.removeItem('code_verifier');
   }
 
   return response.access_token;
@@ -133,16 +127,28 @@ const getToken = async () => {
   const urlParams = new URLSearchParams(window.location.search);
 
   let code = urlParams.get('code') as string;
-  if (code) return [await requestToken(code), true];
+  if (code) {
+    // MINIMAL FIX: Clear URL after processing to prevent loops
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return [await requestToken(code), true];
+  }
 
   const publicToken = getFromLocalStorageWithExpiry('public_access_token');
   if (publicToken) return [publicToken, false];
 
-  const access_token = window.location.hash.split('&')[0].split('=')[1];
-  if (access_token) {
-    setLocalStorageWithExpiry('public_access_token', access_token, 3600);
-    window.location.hash = '';
-    return [access_token, false];
+  // MINIMAL FIX: Safer hash parsing
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token=')) {
+    const access_token = hash.split('&')[0].split('=')[1];
+    if (access_token) {
+      setLocalStorageWithExpiry(
+        'public_access_token',
+        access_token,
+        3600 * 1000,
+      ); // Fix: multiply by 1000
+      window.location.hash = '';
+      return [access_token, false];
+    }
   }
 
   return [null, false];
@@ -153,7 +159,7 @@ export const getRefreshToken = async () => {
 
   if (!refreshToken) {
     console.log('No refresh token available');
-    return null; // ← Don't automatically redirect
+    return null;
   }
 
   const url = 'https://accounts.spotify.com/api/token';
