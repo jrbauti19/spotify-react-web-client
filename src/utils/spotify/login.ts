@@ -1,6 +1,8 @@
-import Axios from 'axios';
-import { getFromLocalStorageWithExpiry, setLocalStorageWithExpiry } from '../localstorage';
-import axios from 'axios';
+import { default as Axios, default as axios } from 'axios';
+import {
+  getFromLocalStorageWithExpiry,
+  setLocalStorageWithExpiry,
+} from '../localstorage';
 
 /* eslint-disable import/no-anonymous-default-export */
 const client_id = process.env.REACT_APP_SPOTIFY_CLIENT_ID as string;
@@ -15,6 +17,10 @@ const SCOPES = [
   'user-read-playback-state',
   'user-modify-playback-state',
   'user-read-currently-playing',
+  'user-read-private', // ← ADD THIS! Required for user authentication
+  'user-read-email', // ← ADD THIS! Also commonly required
+  'ugc-image-upload',
+  'streaming',
 
   'playlist-read-private',
   'playlist-modify-public',
@@ -47,7 +53,8 @@ const base64encode = (input: ArrayBuffer) => {
 };
 
 const generateRandomString = (length: number) => {
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const possible =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const values = crypto.getRandomValues(new Uint8Array(length));
   return values.reduce((acc, x) => acc + possible[x % possible.length], '');
 };
@@ -86,13 +93,13 @@ const logInWithSpotify = async (anonymous?: boolean) => {
 const requestToken = async (code: string) => {
   const code_verifier = localStorage.getItem('code_verifier') as string;
 
-  const body = {
+  const body = new URLSearchParams({
     code,
     client_id,
     redirect_uri,
     code_verifier,
     grant_type: 'authorization_code',
-  };
+  });
 
   const { data: response } = await Axios.post<{
     access_token: string;
@@ -106,8 +113,13 @@ const requestToken = async (code: string) => {
   });
 
   if (response.access_token) {
-    setLocalStorageWithExpiry('access_token', response.access_token, response.expires_in * 60 * 60);
-    axios.defaults.headers.common['Authorization'] = 'Bearer ' + response.access_token;
+    setLocalStorageWithExpiry(
+      'access_token',
+      response.access_token,
+      response.expires_in * 60 * 60,
+    );
+    axios.defaults.headers.common['Authorization'] =
+      'Bearer ' + response.access_token;
     localStorage.setItem('refresh_token', response.refresh_token);
   }
 
@@ -137,12 +149,11 @@ const getToken = async () => {
 };
 
 export const getRefreshToken = async () => {
-  // refresh token that has been previously stored
   const refreshToken = localStorage.getItem('refresh_token') as string;
 
   if (!refreshToken) {
-    logInWithSpotify(true);
-    return null;
+    console.log('No refresh token available');
+    return null; // ← Don't automatically redirect
   }
 
   const url = 'https://accounts.spotify.com/api/token';
@@ -158,20 +169,35 @@ export const getRefreshToken = async () => {
       refresh_token: refreshToken,
     }),
   };
-  const body = await fetch(url, payload);
-  const response = await body.json();
 
-  if (!response.access_token) {
-    logInWithSpotify(true);
+  try {
+    const body = await fetch(url, payload);
+    const response = await body.json();
+
+    if (!response.access_token) {
+      console.log('Refresh token failed, clearing stored tokens');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('access_token');
+      return null;
+    }
+
+    setLocalStorageWithExpiry(
+      'access_token',
+      response.access_token,
+      response.expires_in * 1000,
+    );
+    axios.defaults.headers.common['Authorization'] =
+      'Bearer ' + response.access_token;
+
+    if (response.refresh_token) {
+      localStorage.setItem('refresh_token', response.refresh_token);
+    }
+
+    return response.access_token;
+  } catch (error) {
+    console.error('Refresh token error:', error);
     return null;
   }
-
-  setLocalStorageWithExpiry('access_token', response.access_token, response.expires_in * 60 * 60);
-  axios.defaults.headers.common['Authorization'] = 'Bearer ' + response.access_token;
-  if (response.refreshToken) {
-    localStorage.setItem('refresh_token', response.refreshToken);
-  }
-  return response.access_token;
 };
 
 export default { logInWithSpotify, getToken, getRefreshToken };
