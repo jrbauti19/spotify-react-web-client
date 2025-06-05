@@ -190,8 +190,6 @@ While this is primarily a portfolio project, I welcome suggestions and feedback!
 
 This project is licensed under the MIT License.
 
-**Original Project**: Based on the excellent work by [Franco Borrelli](https://github.com/francoborrelli/spotify-react-web-client)
-
 ---
 
 ⭐ **If you found this project helpful, please give it a star!** ⭐
