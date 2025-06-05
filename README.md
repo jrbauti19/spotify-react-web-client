@@ -137,8 +137,6 @@ This is my personal implementation of a Spotify web client clone, showcasing mod
 5. **Start development server:**
 
    ```bash
-   npm start
-   # or
    yarn start
    ```
 
