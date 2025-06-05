@@ -53,30 +53,22 @@ const generateRandomString = (length: number) => {
 };
 
 const logInWithSpotify = async (anonymous?: boolean) => {
-  // MINIMAL FIX: Always generate fresh code_verifier to prevent loops
   const codeVerifier = generateRandomString(64);
   localStorage.setItem('code_verifier', codeVerifier);
 
   const hashed = await sha256(codeVerifier);
   const codeChallenge = base64encode(hashed);
 
-  if (anonymous) {
-    authUrl.search = new URLSearchParams({
-      client_id,
-      scope: '',
-      redirect_uri,
-      response_type: 'token',
-    }).toString();
-  } else {
-    authUrl.search = new URLSearchParams({
-      client_id,
-      redirect_uri,
-      response_type: 'code',
-      scope: SCOPES.join(' '),
-      code_challenge_method: 'S256',
-      code_challenge: codeChallenge,
-    }).toString();
-  }
+  // Use 'code' for both anonymous and authenticated flows
+  authUrl.search = new URLSearchParams({
+    client_id,
+    redirect_uri,
+    response_type: 'code',
+    scope: anonymous ? '' : SCOPES.join(' '),
+    code_challenge_method: 'S256',
+    code_challenge: codeChallenge,
+  }).toString();
+
   window.location.href = authUrl.toString();
 };
 
