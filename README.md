@@ -24,7 +24,7 @@
 
 This is my personal implementation of a Spotify web client clone, showcasing modern React development practices and real-world API integration. Built as part of my portfolio to demonstrate expertise in **React, TypeScript, Redux, and external API integration**.
 
-**Live Demo**: [spotify-clone-jrbauti19.vercel.app](https://spotify-clone-jrbauti19.vercel.app/)
+**Live Demo**: [spotify-clone-jrbauti19.vercel.app](https://spotify-react-web-client-zeta.vercel.app/)
 
 ## ✨ Key Features
 
