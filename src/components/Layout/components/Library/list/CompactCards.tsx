@@ -1,27 +1,30 @@
-import { SpeakerIcon } from '../../../../Icons';
-import { CardShortProps, CollapsedCard } from './ListCards';
 import { AlbumActionsWrapper } from '../../../../Actions/AlbumActions';
 import { ArtistActionsWrapper } from '../../../../Actions/ArtistActions';
 import { PlayistActionsWrapper } from '../../../../Actions/PlaylistActions';
+import { SpeakerIcon } from '../../../../Icons';
+import { CardShortProps, CollapsedCard } from './ListCards';
 
 // Utils
 import { useNavigate } from 'react-router-dom';
 
 // Redux
-import { useAppDispatch, useAppSelector } from '../../../../../store/store';
 import { yourLibraryActions } from '../../../../../store/slices/yourLibrary';
+import { useAppDispatch, useAppSelector } from '../../../../../store/store';
 
 // Services
 import { playerService } from '../../../../../services/player';
 
 // Constants
-import { ARTISTS_DEFAULT_IMAGE, PLAYLIST_DEFAULT_IMAGE } from '../../../../../constants/spotify';
+import {
+  ARTISTS_DEFAULT_IMAGE,
+  PLAYLIST_DEFAULT_IMAGE,
+} from '../../../../../constants/spotify';
 
 // Interface
+import { memo, useCallback } from 'react';
 import type { Album } from '../../../../../interfaces/albums';
 import type { Artist } from '../../../../../interfaces/artist';
 import type { Playlist } from '../../../../../interfaces/playlists';
-import { memo, useCallback } from 'react';
 import { getLibraryCollapsed, uiActions } from '../../../../../store/slices/ui';
 
 const CardCompact = (props: CardShortProps) => {
@@ -30,7 +33,7 @@ const CardCompact = (props: CardShortProps) => {
   return (
     <button
       onClick={onClick}
-      className='library-card'
+      className="library-card"
       style={{ borderRadius: 10 }}
       onDoubleClick={onDoubleClick}
     >
@@ -43,22 +46,29 @@ const CardCompact = (props: CardShortProps) => {
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', gap: 5, width: '100%', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 5,
+            width: '100%',
+            alignItems: 'center',
+          }}
+        >
           <h3
-            className='text-md font-semibold text-white'
+            className="text-md font-semibold text-white"
             style={{
               fontSize: 15,
               fontWeight: 100,
               lineHeight: 2.1,
               maxWidth: subtitle ? '60%' : undefined,
-              color: isCurrent ? '#1db954' : undefined,
+              color: isCurrent ? '#01a085' : undefined,
             }}
           >
             {title}
           </h3>
 
           <p
-            className='text-md font-semibold text-white'
+            className="text-md font-semibold text-white"
             style={{
               fontSize: 13,
               opacity: 0.7,
@@ -70,7 +80,9 @@ const CardCompact = (props: CardShortProps) => {
         </div>
 
         <div style={{ padding: 8 }}>
-          {isCurrent ? <SpeakerIcon fill='#1db954' height={13} width={13} /> : null}
+          {isCurrent ? (
+            <SpeakerIcon fill="#01a085" height={13} width={13} />
+          ) : null}
         </div>
       </div>
     </button>
@@ -93,7 +105,9 @@ const Card = memo((props: CardShortProps) => {
 const ArtistCardShort = memo(({ artist }: { artist: Artist }) => {
   const navigate = useNavigate();
   const filter = useAppSelector((state) => state.yourLibrary.filter);
-  const contextUri = useAppSelector((state) => state.spotify.state?.context.uri);
+  const contextUri = useAppSelector(
+    (state) => state.spotify.state?.context.uri,
+  );
 
   const onClick = useCallback(() => {
     navigate(`/artist/${artist.id}`);
@@ -121,7 +135,9 @@ const AlbumCardShort = memo(({ album }: { album: Album }) => {
   const dispatch = useAppDispatch();
   const userId = useAppSelector((state) => state.auth.user?.id);
   const filter = useAppSelector((state) => state.yourLibrary.filter);
-  const contextUri = useAppSelector((state) => state.spotify.state?.context.uri);
+  const contextUri = useAppSelector(
+    (state) => state.spotify.state?.context.uri,
+  );
 
   const onClick = useCallback(() => {
     if (!userId) {
@@ -151,7 +167,9 @@ const PlaylistCardShort = memo(({ playlist }: { playlist: Playlist }) => {
   const navigate = useNavigate();
 
   const filter = useAppSelector((state) => state.yourLibrary.filter);
-  const contextUri = useAppSelector((state) => state.spotify.state?.context.uri);
+  const contextUri = useAppSelector(
+    (state) => state.spotify.state?.context.uri,
+  );
 
   const onClick = useCallback(() => {
     navigate(`/playlist/${playlist.id}`);
@@ -172,15 +190,25 @@ const PlaylistCardShort = memo(({ playlist }: { playlist: Playlist }) => {
           title={playlist.name}
           isCurrent={contextUri === playlist.uri}
           subtitle={filter === 'ALL' ? `• Playlist` : ''}
-          image={playlist?.images?.length ? playlist?.images[0]?.url : PLAYLIST_DEFAULT_IMAGE}
+          image={
+            playlist?.images?.length
+              ? playlist?.images[0]?.url
+              : PLAYLIST_DEFAULT_IMAGE
+          }
         />
       </div>
     </PlayistActionsWrapper>
   );
 });
 
-export const CompactItemComponent = ({ item }: { item: Artist | Playlist | Album }) => {
-  if (item.type === 'artist') return <ArtistCardShort key={item.id} artist={item} />;
-  if (item.type === 'album') return <AlbumCardShort key={item.id} album={item} />;
+export const CompactItemComponent = ({
+  item,
+}: {
+  item: Artist | Playlist | Album;
+}) => {
+  if (item.type === 'artist')
+    return <ArtistCardShort key={item.id} artist={item} />;
+  if (item.type === 'album')
+    return <AlbumCardShort key={item.id} album={item} />;
   return <PlaylistCardShort key={item.id} playlist={item} />;
 };

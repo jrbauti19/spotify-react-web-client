@@ -165,7 +165,7 @@ const SpotifyContainer: FC<{ children: any }> = memo(({ children }) => {
             position: 'fixed',
             bottom: '100px',
             right: '20px',
-            background: '#1db954',
+            background: '#01a085',
             color: 'white',
             padding: '10px 15px',
             borderRadius: '8px',

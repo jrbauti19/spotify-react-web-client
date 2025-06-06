@@ -116,7 +116,8 @@
   #right-hearts {
     > * {
       transform-origin: center center;
-      animation: floatingHearts 0.65s cubic-bezier(0.12, 0.84, 0.5, 0.44) forwards;
+      animation: floatingHearts 0.65s cubic-bezier(0.12, 0.84, 0.5, 0.44)
+        forwards;
     }
 
     g {
@@ -252,7 +253,7 @@
   }
 
   .active {
-    color: #1db954;
+    color: #01a085;
     font-weight: 100 !important;
   }
 }
@@ -270,7 +271,7 @@
     -webkit-transform: translateX(-50%);
     transform: translateX(-50%);
     width: 4px;
-    color: #1db954;
+    color: #01a085;
   }
 
   &.active {
@@ -279,7 +280,7 @@
         fill: #38ec77 !important;
       }
     }
-    fill: #1db954 !important;
+    fill: #01a085 !important;
   }
 }
 

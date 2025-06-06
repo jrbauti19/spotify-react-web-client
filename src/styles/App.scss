@@ -56,8 +56,8 @@ body {
 
 html,
 body {
-  font-family: SpotifyMixUI, CircularSp-Arab, CircularSp-Hebr, CircularSp-Cyrl, CircularSp-Grek,
-    CircularSp-Deva, var(sans-serif) !important;
+  font-family: SpotifyMixUI, CircularSp-Arab, CircularSp-Hebr, CircularSp-Cyrl,
+    CircularSp-Grek, CircularSp-Deva, var(sans-serif) !important;
 }
 
 /* hide scrollbar but allow scrolling */
@@ -189,7 +189,8 @@ h3 {
   -webkit-app-region: no-drag !important;
   background-color: #282828 !important;
   border-radius: 4px !important;
-  -webkit-box-shadow: 0 16px 24px rgba(0, 0, 0, 0.3), 0 6px 8px rgba(0, 0, 0, 0.2) !important;
+  -webkit-box-shadow: 0 16px 24px rgba(0, 0, 0, 0.3),
+    0 6px 8px rgba(0, 0, 0, 0.2) !important;
   box-shadow: 0 16px 24px rgba(0, 0, 0, 0.3), 0 6px 8px rgba(0, 0, 0, 0.2) !important;
   max-height: calc(100vh - 24px) !important;
   max-width: 350px !important;
@@ -246,7 +247,7 @@ h3 {
   background-color: #282828 !important;
 
   span {
-    color: #1db954 !important;
+    color: #01a085 !important;
   }
 }
 
@@ -284,7 +285,7 @@ h3 {
 .ant-dropdown-menu-item:hover {
   background: #ffffff17 !important;
   // .ant-dropdown-menu-title-content {
-  //   // color: #1db954 !important;
+  //   // color: #01a085 !important;
   // }
 }
 
@@ -328,7 +329,7 @@ h3 {
   position: relative;
 
   &::after {
-    background-color: #1db954;
+    background-color: #01a085;
     border-radius: 50%;
     bottom: -10px;
     content: '';
@@ -419,12 +420,15 @@ h3 {
 }
 
 .transition {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke,
-    opacity, box-shadow, transform, filter, -webkit-backdrop-filter;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke,
-    opacity, box-shadow, transform, filter, backdrop-filter;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke,
-    opacity, box-shadow, transform, filter, backdrop-filter, -webkit-backdrop-filter;
+  transition-property: color, background-color, border-color,
+    text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter,
+    -webkit-backdrop-filter;
+  transition-property: color, background-color, border-color,
+    text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter,
+    backdrop-filter;
+  transition-property: color, background-color, border-color,
+    text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter,
+    backdrop-filter, -webkit-backdrop-filter;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 0.25s;
 }
@@ -524,9 +528,9 @@ h3 {
 }
 
 .drag-line {
-  color: #1db954;
-  border: 1px solid #1db954 !important;
-  background-color: #1db954;
+  color: #01a085;
+  border: 1px solid #01a085 !important;
+  background-color: #01a085;
   height: 1px;
   width: 100%;
   position: absolute;
@@ -620,7 +624,8 @@ a {
   text-transform: none;
   touch-action: manipulation;
   transition-duration: 33ms;
-  transition-property: background-color, border-color, color, box-shadow, filter, transform;
+  transition-property: background-color, border-color, color, box-shadow, filter,
+    transform;
   user-select: none;
   vertical-align: middle;
   transform: translate3d(0px, 0px, 0px);
@@ -671,7 +676,10 @@ a {
     display: grid;
     grid-gap: var(--grid-gap);
     grid-auto-rows: 3;
-    grid-template-columns: repeat(auto-fill, minmax(var(--min-column-width), 1fr));
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(var(--min-column-width), 1fr)
+    );
     grid-auto-rows: 1fr;
     --min-column-width: 120px;
   }
@@ -754,7 +762,13 @@ a {
   .login-container {
     border-radius: 2px;
     padding: 12px 24px 10px 15px;
-    background-image: -webkit-gradient(linear, left top, right top, from(#af2896), to(#509bf5));
+    background-image: -webkit-gradient(
+      linear,
+      left top,
+      right top,
+      from(#af2896),
+      to(#509bf5)
+    );
     background-image: linear-gradient(90deg, #af2896, #509bf5);
     display: -webkit-box;
     display: -ms-flexbox;
