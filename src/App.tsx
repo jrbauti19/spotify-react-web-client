@@ -3,28 +3,48 @@ import './styles/App.scss';
 
 // Utils
 import i18next from 'i18next';
-import { FC, Suspense, lazy, memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  FC,
+  Suspense,
+  lazy,
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { getFromLocalStorageWithExpiry } from './utils/localstorage';
 
 // Components
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, message } from 'antd';
+import {
+  Route,
+  BrowserRouter as Router,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import { AppLayout } from './components/Layout';
-import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-router-dom';
 
 // Redux
 import { Provider } from 'react-redux';
-import { uiActions } from './store/slices/ui';
 import { PersistGate } from 'redux-persist/integration/react';
 import { authActions, loginToSpotify } from './store/slices/auth';
-import { persistor, store, useAppDispatch, useAppSelector } from './store/store';
+import { uiActions } from './store/slices/ui';
+import {
+  persistor,
+  store,
+  useAppDispatch,
+  useAppSelector,
+} from './store/store';
 
 // Spotify
 import WebPlayback, { WebPlaybackProps } from './utils/spotify/webPlayback';
 
 // Pages
+import { Spinner } from './components/spinner/spinner';
 import SearchContainer from './pages/Search/Container';
 import { playerService } from './services/player';
-import { Spinner } from './components/spinner/spinner';
 
 const Home = lazy(() => import('./pages/Home'));
 const Page404 = lazy(() => import('./pages/404'));
@@ -57,10 +77,14 @@ window.addEventListener('resize', () => {
 
 const SpotifyContainer: FC<{ children: any }> = memo(({ children }) => {
   const dispatch = useAppDispatch();
+  const [deviceStatus, setDeviceStatus] = useState<
+    'connecting' | 'ready' | 'error'
+  >('connecting');
 
   const user = useAppSelector((state) => !!state.auth.user);
   const token = useAppSelector((state) => state.auth.token);
   const requesting = useAppSelector((state) => state.auth.requesting);
+  const deviceReady = useAppSelector((state) => state.spotify.deviceReady);
 
   useEffect(() => {
     const tokenInLocalStorage = getFromLocalStorageWithExpiry('access_token');
@@ -73,6 +97,14 @@ const SpotifyContainer: FC<{ children: any }> = memo(({ children }) => {
     }
   }, [dispatch]);
 
+  // Update device status based on Redux state
+  useEffect(() => {
+    if (deviceReady) {
+      setDeviceStatus('ready');
+      message.success('Spotify device connected and ready!');
+    }
+  }, [deviceReady]);
+
   const webPlaybackSdkProps: WebPlaybackProps = useMemo(
     () => ({
       playerAutoConnect: true,
@@ -80,23 +112,92 @@ const SpotifyContainer: FC<{ children: any }> = memo(({ children }) => {
       playerRefreshRateMs: 1000,
       playerName: 'Spotify React Player',
       onPlayerRequestAccessToken: () => Promise.resolve(token!),
-      onPlayerLoading: () => {},
+      onPlayerLoading: () => {
+        setDeviceStatus('connecting');
+      },
       onPlayerWaitingForDevice: () => {
         dispatch(authActions.setPlayerLoaded({ playerLoaded: true }));
+        setDeviceStatus('connecting');
       },
-      onPlayerError: (e) => {
-        dispatch(loginToSpotify(false));
+      onPlayerError: (errorMessage) => {
+        console.error('Player error:', errorMessage);
+        setDeviceStatus('error');
+        message.error(`Spotify error: ${errorMessage}`);
+
+        // For certain errors, try to re-login
+        if (
+          errorMessage.includes('authentication') ||
+          errorMessage.includes('token')
+        ) {
+          dispatch(loginToSpotify(false));
+        }
       },
       onPlayerDeviceSelected: () => {
         dispatch(authActions.setPlayerLoaded({ playerLoaded: true }));
+        // Don't set to ready here, wait for deviceReady from Redux
       },
     }),
-    [dispatch, token]
+    [dispatch, token],
   );
 
-  if (!user) return <Spinner loading={requesting}>{children}</Spinner>;
+  // Show loading spinner with device status
+  if (!user) {
+    return (
+      <Spinner loading={requesting}>
+        {deviceStatus === 'connecting' && (
+          <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <p>Connecting to Spotify device...</p>
+          </div>
+        )}
+        {children}
+      </Spinner>
+    );
+  }
 
-  return <WebPlayback {...webPlaybackSdkProps}>{children}</WebPlayback>;
+  return (
+    <>
+      <WebPlayback {...webPlaybackSdkProps}>{children}</WebPlayback>
+
+      {/* Device Status Indicator */}
+      {deviceStatus === 'connecting' && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '100px',
+            right: '20px',
+            background: '#1db954',
+            color: 'white',
+            padding: '10px 15px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            zIndex: 1000,
+          }}
+        >
+          🔄 Connecting to Spotify...
+        </div>
+      )}
+
+      {deviceStatus === 'error' && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '100px',
+            right: '20px',
+            background: '#e22134',
+            color: 'white',
+            padding: '10px 15px',
+            borderRadius: '8px',
+            fontSize: '14px',
+            zIndex: 1000,
+            cursor: 'pointer',
+          }}
+          onClick={() => window.location.reload()}
+        >
+          ❌ Connection failed - Click to retry
+        </div>
+      )}
+    </>
+  );
 });
 
 const RoutesComponent = memo(() => {
@@ -114,21 +215,40 @@ const RoutesComponent = memo(() => {
     () =>
       [
         { path: '', element: <Home container={container} />, public: true },
-        { path: '/collection/tracks', element: <LikedSongsPage container={container} /> },
+        {
+          path: '/collection/tracks',
+          element: <LikedSongsPage container={container} />,
+        },
         {
           public: true,
           path: '/playlist/:playlistId',
           element: <PlaylistView container={container} />,
         },
-        { path: '/album/:albumId', element: <AlbumView container={container} /> },
+        {
+          path: '/album/:albumId',
+          element: <AlbumView container={container} />,
+        },
         {
           path: '/artist/:artistId/discography',
           element: <ArtistDiscographyPage container={container} />,
         },
-        { public: true, path: '/artist/:artistId', element: <ArtistPage container={container} /> },
-        { path: '/users/:userId/artists', element: <ProfileArtists container={container} /> },
-        { path: '/users/:userId/playlists', element: <ProfilePlaylists container={container} /> },
-        { path: '/users/:userId/tracks', element: <ProfileTracks container={container} /> },
+        {
+          public: true,
+          path: '/artist/:artistId',
+          element: <ArtistPage container={container} />,
+        },
+        {
+          path: '/users/:userId/artists',
+          element: <ProfileArtists container={container} />,
+        },
+        {
+          path: '/users/:userId/playlists',
+          element: <ProfilePlaylists container={container} />,
+        },
+        {
+          path: '/users/:userId/tracks',
+          element: <ProfileTracks container={container} />,
+        },
         { path: '/users/:userId', element: <Profile container={container} /> },
         { public: true, path: '/genre/:genreId', element: <GenrePage /> },
         { public: true, path: '/search', element: <BrowsePage /> },
@@ -162,12 +282,12 @@ const RoutesComponent = memo(() => {
         },
         { path: '*', element: <Page404 /> },
       ].filter((r) => (user ? true : r.public)),
-    [container, user]
+    [container, user],
   );
 
   return (
     <div
-      className='Main-section'
+      className="Main-section"
       ref={container}
       style={{
         height: user ? undefined : `calc(100vh - 50px)`,
@@ -207,6 +327,7 @@ const RootComponent = () => {
   const user = useAppSelector((state) => !!state.auth.user);
   const language = useAppSelector((state) => state.language.language);
   const playing = useAppSelector((state) => !state.spotify.state?.paused);
+  const deviceReady = useAppSelector((state) => state.spotify.deviceReady);
 
   useEffect(() => {
     document.documentElement.setAttribute('lang', language);
@@ -214,18 +335,29 @@ const RootComponent = () => {
   }, [language]);
 
   const handleSpaceBar = useCallback(
-    (e: KeyboardEvent) => {
+    async (e: KeyboardEvent) => {
       // @ts-ignore
       if (e.target?.tagName?.toUpperCase() === 'INPUT') return;
-      if (playing === undefined) return;
+      if (playing === undefined || !deviceReady) return;
+
       e.stopPropagation();
       if (e.key === ' ' || e.code === 'Space' || e.keyCode === 32) {
         e.preventDefault();
-        const request = !playing ? playerService.startPlayback() : playerService.pausePlayback();
-        request.then().catch(() => {});
+
+        try {
+          const request = !playing
+            ? playerService.startPlayback()
+            : playerService.pausePlayback();
+          await request;
+        } catch (error) {
+          console.error('Spacebar playback control failed:', error);
+          message.error(
+            'Playback control failed. Please check your Spotify connection.',
+          );
+        }
       }
     },
-    [playing]
+    [playing, deviceReady],
   );
 
   useEffect(() => {
@@ -243,7 +375,7 @@ const RootComponent = () => {
     };
     document.addEventListener('contextmenu', handleContextMenu);
     return () => {
-      document.removeEventListener('keydown', handleContextMenu);
+      document.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [user]);
 

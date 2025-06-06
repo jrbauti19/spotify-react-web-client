@@ -1,20 +1,20 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useRef, FC, memo, useCallback } from 'react';
-import { useAppDispatch } from '../../store/store';
-import { spotifyActions } from '../../store/slices/spotify';
+import { FC, memo, useCallback, useEffect, useRef } from 'react';
 import { playerService } from '../../services/player';
+import { spotifyActions } from '../../store/slices/spotify';
+import { useAppDispatch } from '../../store/store';
 
 export interface WebPlaybackProps {
-  onPlayerError: (message: string) => void; // Función para manejar errores del reproductor
-  onPlayerRequestAccessToken: () => Promise<string>; // Función para obtener el token de acceso
-  onPlayerLoading: () => void; // Notificación de que el reproductor está cargando
-  onPlayerWaitingForDevice: (data: any) => void; // Notificación de que el reproductor espera el dispositivo
-  onPlayerDeviceSelected: () => void; // Notificación de que se ha seleccionado el dispositivo
-  playerName: string; // Nombre del reproductor
-  playerInitialVolume: number; // Volumen inicial del reproductor (0 a 1)
-  playerRefreshRateMs?: number; // Frecuencia de actualización del estado del reproductor en ms
-  playerAutoConnect?: boolean; // Si el reproductor se conecta automáticamente o no
-  children?: any; // Elementos hijos para renderizar dentro del componente
+  onPlayerError: (message: string) => void;
+  onPlayerRequestAccessToken: () => Promise<string>;
+  onPlayerLoading: () => void;
+  onPlayerWaitingForDevice: (data: any) => void;
+  onPlayerDeviceSelected: () => void;
+  playerName: string;
+  playerInitialVolume: number;
+  playerRefreshRateMs?: number;
+  playerAutoConnect?: boolean;
+  children?: any;
 }
 
 const WebPlayback: FC<WebPlaybackProps> = memo((props) => {
@@ -75,8 +75,46 @@ const WebPlayback: FC<WebPlaybackProps> = memo((props) => {
   }, [playerRefreshRateMs]);
 
   const clearStatePolling = useCallback(() => {
-    if (statePollingInterval.current) clearInterval(statePollingInterval.current);
+    if (statePollingInterval.current)
+      clearInterval(statePollingInterval.current);
   }, []);
+
+  // NEW: Verify device is active after transfer
+  const verifyDeviceActive = async (
+    deviceId: string,
+    retries = 5,
+  ): Promise<boolean> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        const token = await onPlayerRequestAccessToken();
+        const response = await fetch(
+          'https://api.spotify.com/v1/me/player/devices',
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+
+        if (response.ok) {
+          const deviceData = await response.json();
+          const activeDevice = deviceData.devices.find(
+            (d: any) => d.is_active && d.id === deviceId,
+          );
+
+          if (activeDevice) {
+            console.log('Device verified as active:', deviceId);
+            return true;
+          }
+        }
+
+        // Wait before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error('Error verifying device:', error);
+      }
+    }
+
+    return false;
+  };
 
   const setupWebPlaybackEvents = useCallback(async () => {
     let { Player } = window.Spotify;
@@ -111,19 +149,58 @@ const WebPlayback: FC<WebPlaybackProps> = memo((props) => {
     });
 
     webPlaybackInstance.current.on('player_state_changed', async (state) => {
-      console.log(state);
+      console.log('Player state changed:', state);
       await handleState(state);
     });
 
+    // UPDATED: Enhanced ready event handler with proper device verification
     webPlaybackInstance.current.on('ready', async (data) => {
+      console.log('Player ready with device ID:', data.device_id);
+
       dispatch(spotifyActions.setDeviceId({ deviceId: data.device_id }));
-      dispatch(spotifyActions.setActiveDevice({ activeDevice: data.device_id }));
-      await playerService.transferPlayback(data.device_id);
+      dispatch(spotifyActions.setDeviceReady({ ready: false })); // Set to false initially
+
+      try {
+        // Transfer playback to this device
+        console.log('Transferring playback to device:', data.device_id);
+        await playerService.transferPlayback(data.device_id);
+
+        // Verify the device is actually active
+        const isActive = await verifyDeviceActive(data.device_id);
+
+        if (isActive) {
+          dispatch(
+            spotifyActions.setActiveDevice({ activeDevice: data.device_id }),
+          );
+          dispatch(spotifyActions.setDeviceReady({ ready: true }));
+          console.log(
+            'Device successfully activated and verified:',
+            data.device_id,
+          );
+        } else {
+          console.warn('Device transfer completed but device is not active');
+          onPlayerError(
+            'Failed to activate playback device. Please try refreshing.',
+          );
+        }
+      } catch (error) {
+        console.error('Failed to transfer playback:', error);
+        onPlayerError('Failed to setup playback device. Please try again.');
+      }
+    });
+
+    // Handle device disconnection
+    webPlaybackInstance.current.on('not_ready', ({ device_id }) => {
+      console.log('Device has gone offline', device_id);
+      dispatch(spotifyActions.setDeviceReady({ ready: false }));
+      dispatch(spotifyActions.setActiveDevice({ activeDevice: null }));
     });
 
     if (playerAutoConnect) {
       webPlaybackInstance.current.connect();
-      dispatch(spotifyActions.setPlayer({ player: webPlaybackInstance.current }));
+      dispatch(
+        spotifyActions.setPlayer({ player: webPlaybackInstance.current }),
+      );
     }
   }, [
     playerName,
@@ -133,6 +210,7 @@ const WebPlayback: FC<WebPlaybackProps> = memo((props) => {
     onPlayerError,
     handleState,
     dispatch,
+    verifyDeviceActive,
   ]);
 
   const setupWaitingForDevice = useCallback(() => {
@@ -158,7 +236,8 @@ const WebPlayback: FC<WebPlaybackProps> = memo((props) => {
 
     return () => {
       clearStatePolling();
-      if (deviceSelectedInterval.current) clearInterval(deviceSelectedInterval.current);
+      if (deviceSelectedInterval.current)
+        clearInterval(deviceSelectedInterval.current);
       webPlaybackInstance.current?.disconnect();
     };
   }, []);
